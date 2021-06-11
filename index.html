@@ -9,7 +9,7 @@
     <link rel="stylesheet" type="text/css"
         href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css"
         media="screen,projection">
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="styles.css">
     <script type="text/javascript"
         src="https://unpkg.com/amazon-quicksight-embedding-sdk@1.0.2/dist/quicksight-embedding-js-sdk.min.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
@@ -18,53 +18,71 @@
     <script src="auth.js"></script>
     <script src="aws-cognito-sdk.js"></script>
     <script src="amazon-cognito-auth.min.js"></script>
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
 
 <body onload="onLoad()">
-    <nav>
-        <div class="nav-wrapper blue-grey darken-2">
-            <h3><a href="http://assignment3-env.eba-pr3ef5wg.us-east-1.elasticbeanstalk.com/">Assignment 3</a></h3>
-        </div>
-    </nav>
-    <br />
-    <br />
-    <br />
-    <div class="container">
-        <div class="row">
-            <div class="col s12 m12 center-align">
-                <h5 id="statusNotLogin" title="Status">
-                    Welcome to Energy Usage Recommendation System Dashboard
-                </h5>
-                <h5 id="statusLogin" title="Status">
-                    You have successfull loggedin! Redirecting...
-                </h5>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col s12 m12 center">
-                <div class="loader center" id="loader"></div>
-                <div id="instructions">
-                    <ul>
-                        <li>If you are not redirected, click on below link:</li>
-                        <div id="dashboardLink" class="center-align"></div>
-                    </ul>
+    <section class="homecontent">
+        <h2>Welcome to Energy Recommendation System,</h2>
+        <p>Motivation behind this idea is the lack of existence of the system which can help visualize the appliance
+            level electricity consumption data which can ultimately lead to</p>
+        <p>It is a system which allows a user to register itself on the portal, login to see their electricity usage
+            appliance wise data to monitor the energy consumption pattern to the end user as well the energy supplier.
+        </p>
+        <p>This system can be used as a novel stand-alone system as well as extension to the existing user/account
+            management system offered by energy supply companies. This system has various potential such as
+            implementation of anomaly detection for fault detecting in appliances as well as sensors.</p>
+        <p>This fault detection can help reduce the risk of fire due to fault in appliance and can help for maintenance
+            of sensors. Using high resolution data, companies can help manage peak hour usage using pattern of energy
+            consumption.</p>
+    </section>
+
+    <section class="functions">
+        <ul class="menu">
+            <li><a class="waves-effect waves-light btn-large blue"
+                    href="http://assignment3-env.eba-pr3ef5wg.us-east-1.elasticbeanstalk.com/">Home</a></li>
+        </ul>
+        <div class="container">
+            <div class="row">
+                <div class="col s12 m12 center-align">
+                    <h5 id="statusNotLogin" title="Status">
+                        Welcome to Energy Usage Recommendation System Dashboard
+                    </h5>
+                    <h5 id="statusLogin" title="Status">
+                        You have successfull loggedin! Redirecting...
+                    </h5>
                 </div>
             </div>
-        </div>
-        <p></p>
-        <div class="row">
-            <div class="col s12 m12">
-                <div id="startButtons" class="center-align">
-                    <div class="button">
-                        <a class="waves-effect waves-light btn-large blue-grey darken-2 z-depth-5" id="logInButton"
-                            href="javascript:void(0)" title="Login in">Login In / Sign Up</a>
+            <div class="row">
+                <div class="col s12 m12 center">
+                    <div class="loader center" id="loader"></div>
+                    <div id="instructions">
+                        <ul>
+                            <li>If you are not redirected, click on below link:</li>
+                            <div id="dashboardLink" class="center-align"></div>
+                        </ul>
                     </div>
                 </div>
             </div>
-        </div>
+            <p></p>
+            <div class="row">
+                <div class="col s12 m12">
+                    <div id="startButtons" class="center-align">
+                        <div class="button">
+                            <a class="waves-effect waves-light btn-large blue" id="logInButton"
+                                href="javascript:void(0)" title="Login in">Login In / Sign Up</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    </div>
+        </div>
+        <footer class="footer">
+            <p> Devansh Parmar(S3793557), Ravikumar Balar(S3798098)</p>
+        </footer>
+    </section>
+
     <script>
         let thisUrlEncoded = encodeURIComponent("https://" + window.location.hostname);
         let quicksightUrlEncoded = encodeURIComponent("https://quicksight.aws.amazon.com/");
