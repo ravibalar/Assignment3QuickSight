@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+    <title>Assignment 3</title>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" type="image/png" href="https://a0.awsstatic.com/main/images/site/favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" type="text/css"
+        href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css"
+        media="screen,projection">
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script type="text/javascript"
+        src="https://unpkg.com/amazon-quicksight-embedding-sdk@1.0.2/dist/quicksight-embedding-js-sdk.min.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/js/materialize.min.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.96.0.min.js"></script>
+    <script src="auth.js"></script>
+    <script src="aws-cognito-sdk.js"></script>
+    <script src="amazon-cognito-auth.min.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body onload="onLoad()">
+    <section class="homecontent">
+        <h2>Welcome to Energy Usage System,</h2>
+        <p>Motivation behind this idea is the lack of existence of the system which can help visualize the appliance
+            level electricity consumption data which can ultimately lead to</p>
+        <p>It is a system which allows a user to register itself on the portal, login to see their electricity usage
+            appliance wise data to monitor the energy consumption pattern to the end user as well the energy supplier.
+        </p>
+        <p>This system can be used as a novel stand-alone system as well as extension to the existing user/account
+            management system offered by energy supply companies. This system has various potential such as
+            implementation of anomaly detection for fault detecting in appliances as well as sensors.</p>
+        <p>This fault detection can help reduce the risk of fire due to fault in appliance and can help for maintenance
+            of sensors. Using high resolution data, companies can help manage peak hour usage using pattern of energy
+            consumption.</p>
+    </section>
+
+    <section class="functions">
+        <ul class="menu">
+            <li><a class="waves-effect waves-light btn-large blue"
+                    href="http://assignment3-env.eba-pr3ef5wg.us-east-1.elasticbeanstalk.com/">Home</a></li>
+        </ul>
+        <div class="container">
+            <div class="row">
+                <div class="col s12 m12 center-align">
+
+                    <h5 id="statusNotLogin" title="Status">
+                        Login to Access the Dashboard
+                    </h5>
+                    <h5 id="statusLogin" title="Status">
+                        You have successfull loggedin! Redirecting...
+                    </h5>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col s12 m12 center">
+                    <div class="loader center" id="loader"></div>
+                    <div id="instructions">
+                        <ul>
+                            <li>If you are not redirected, click on below link:</li>
+                            <div id="dashboardLink" class="center-align"></div>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col s12 m12">
+                    <div id="startButtons" class="center-align">
+                        <div class="button">
+                            <a class="waves-effect waves-light btn-large blue" id="logInButton"
+                                href="javascript:void(0)" title="Login in">Login In / Sign Up</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer class="footer">
+            <p>Devansh Parmar(S3793557), Ravikumar Balar(S3798098)</p>
+        </footer>
+    </section>
+
+    <script>
+        let thisUrlEncoded = encodeURIComponent("https://" + window.location.hostname);
+        let quicksightUrlEncoded = encodeURIComponent("https://quicksight.aws.amazon.com/");
+        AWS.config.update({
+            region: region,
+            credentials: new AWS.CognitoIdentityCredentials({
+                IdentityPoolId: ''
+            })
+        });
+
+        AWSCognito.config.region = region;
+
+
+        AWSCognito.config.credentials = new AWS.CognitoIdentityCredentials({
+            IdentityPoolId: identityPool
+        });
+
+        AWSCognito.config.update({ accessKeyId: 'null', secretAccessKey: 'null' });
+        // Operations when the web page is loaded.
+        function onLoad() {
+            document.getElementById("statusNotLogin").style.display = 'block';
+            document.getElementById("statusLogin").style.display = 'none';
+            document.getElementById("instructions").style.display = 'none';
+            // Initiatlize CognitoAuth object
+            var auth = initCognitoSDK();
+            document.getElementById("logInButton").addEventListener("click", function () {
+                userButton(auth);
+            });
+            var curUrl = window.location.href;
+            auth.parseCognitoWebResponse(curUrl);
+        }
+
+        // Operations when signed in.
+        function showSignedIn(session) {
+            document.getElementById("statusNotLogin").style.display = 'none';
+            document.getElementById("statusLogin").style.display = 'block';
+            document.getElementById("logInButton").innerHTML = "Sign Out";
+            document.getElementById("loader").style.display = "block";
+        }
+
+        // Perform user operations.
+        function userButton(auth) {
+            var state = document.getElementById('logInButton').innerHTML;
+            var statestr = state.toString();
+            if (statestr.includes("Sign Out")) {
+                document.getElementById("logInButton").innerHTML = "Sign In";
+                auth.signOut();
+                showSignedOut();
+            } else {
+                auth.getSession();
+            }
+        }
+
+        // Initialize a cognito auth object.
+        function initCognitoSDK() {
+            let auth = new AWSCognito.CognitoIdentityServiceProvider.CognitoAuth(authData);
+            auth.userhandler = {
+                onSuccess: function (result) {
+                    console.log("Cognito Sign in successful!");
+                    showSignedIn(result);
+                    let id_token = auth.signInUserSession.idToken.jwtToken;
+                    let cognitoParams = {
+                        IdentityPoolId: identityPool,
+                        Logins: {}
+                    };
+                    cognitoParams.Logins["cognito-idp." + region + ".amazonaws.com/" + poolId] = id_token;
+                    AWS.config.credentials = new AWS.CognitoIdentityCredentials(cognitoParams);
+                    AWS.config.getCredentials(function () {
+                        let req = new XMLHttpRequest();
+                        let creds = {
+                            "sessionId": AWS.config.credentials.accessKeyId,
+                            "sessionKey": AWS.config.credentials.secretAccessKey,
+                            "sessionToken": AWS.config.credentials.sessionToken
+                        }
+                        let credsEncoded = encodeURIComponent(JSON.stringify(creds));
+                        let uri = "https://signin.aws.amazon.com/federation?Action=getSigninToken&SessionDuration=43200&Session=" + credsEncoded;
+                        $.ajax({
+                            type: 'POST',
+                            url: endpoint,
+                            headers: {
+                                Authorization: id_token
+                            },
+                            data: uri,
+                            success: function (response) {
+                                console.log(response);
+                                let quickSightSSO = "https://signin.aws.amazon.com/federation?Action=login&Issuer=" + thisUrlEncoded + "&Destination=" + quicksightUrlEncoded + "&SigninToken=" + response.SigninToken
+                                console.log("Federated Sign In Token: " + response.SigninToken);
+                                console.log("AWS Console Sign In URL: " + quickSightSSO);
+                                window.location = quickSightSSO;
+
+                                document.getElementById("dashboardLink").innerHTML = "<a href='" + quickSightSSO + "'>" + "https://quicksight.aws.amazon.com" + "</a>";
+                                document.getElementById("loader").style.display = "none";
+                                document.getElementById("instructions").style.display = 'block';
+                            },
+                            error: function (xhr, status, error) {
+                                var err = eval(xhr.responseText);
+                                console.log(JSON.stringify(xhr));
+                                if (xhr.status == "0") {
+                                    document.getElementById("statusLogin").innerHTML = "<h5>Token Expired or Invalid! Signing Out...</h5>"
+                                    auth.signOut();
+                                }
+                            }
+                        });
+
+                    });
+                },
+                onFailure: function (err) {
+                    console.log("Error!" + err);
+                    document.getElementById("statusLogin").innerHTML = "<h5>Token Expired or Invalid! Signing Out...</h5>"
+                    auth.signOut();
+                }
+            };
+            // The default response_type is "token", uncomment the next line will make it be "code".
+            // auth.useCodeGrantFlow();
+            return auth;
+        }
+    </script>
+</body>
+
+</html>
+
+import csv
+from botocore.vendored import requests
+import boto3
+bucket_name = 'cognitocheck'
+s3 = s3 = boto3.resource('s3')
+
+bucket = s3.Bucket(bucket_name)
+
+url_lists = [
+'https://raw.githubusercontent.com/ravibalar/Assignment3EBS/master/household_power_consumption.csv']
+
+for url in url_lists:
+session = requests.Session()
+raw_data = session.get(url)
+key = url.split('/')[::-1][0].lower()
+decoded_content = raw_data.content.decode('utf-8')
+print("\n Uploading \n", key)
+bucket.put_object(Key=key, Body=decoded_content, ACL='public-read')
+print("\n Uploaded \n", key)
+#aws cloudformation package --template-file quicksight.yaml --output-template-file quicksight-output.yaml --s3-bucket
+<bucket>
+    #aws cloudformation deploy --template-file /<path>/quicksight-output.yaml --stack-name CognitoQuickSight
+        --capabilities CAPABILITY_IAM
+        #aws cloudformation describe-stacks --query 'Stacks[0].[Outputs[].[OutputKey,OutputValue]]|[]' --output text
+        --stack-name CognitoQuickSight
+        #Add outputs from the last command
+
+        AWSTemplateFormatVersion: "2010-09-09"
+        Transform: AWS::Serverless-2016-10-31
+        Description: Federate access from Cognito user Pools to QuickSight
+        Resources:
+        CognitoUserPool:
+        Type: "AWS::Cognito::UserPool"
+        Properties:
+        UserPoolName: QuickSightUsers
+        AutoVerifiedAttributes:
+        - "email"
+        Schema:
+        - AttributeDataType: "String"
+        Name: email
+        Required: True
+        CognitoUserPoolClient:
+        Type: "AWS::Cognito::UserPoolClient"
+        Properties:
+        ClientName: QuickSight
+        GenerateSecret: false
+        UserPoolId: !Ref CognitoUserPool
+        WriteAttributes:
+        - "email"
+        CognitoIdPool:
+        Type: "AWS::Cognito::IdentityPool"
+        Properties:
+        IdentityPoolName: !Ref AWS::StackName
+        CognitoIdentityProviders:
+        - ClientId: !Ref CognitoUserPoolClient
+        ProviderName: !GetAtt CognitoUserPool.ProviderName
+        AllowUnauthenticatedIdentities: false
+        QuickSightApi:
+        Type: AWS::Serverless::Api
+        Properties:
+        StageName: prod
+        DefinitionBody:
+        swagger: "2.0"
+        info:
+        version: "2017-08-17T22:53:59Z"
+        title: "QuickSight"
+        basePath: "/prod"
+        schemes:
+        - "https"
+        paths:
+        /:
+        post:
+        produces:
+        - "application/json"
+        responses:
+        "200":
+        description: "200 response"
+        schema:
+        $ref: "#/definitions/Empty"
+        headers:
+        Access-Control-Allow-Origin:
+        type: "string"
+        security:
+        - QuickSight: []
+        x-amazon-apigateway-integration:
+        responses:
+        default:
+        statusCode: "200"
+        responseParameters:
+        method.response.header.Access-Control-Allow-Origin: "'*'"
+        uri:
+        Fn::Sub:
+        arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QuickSightFederationFunction.Arn}/invocations
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+        options:
+        consumes:
+        - "application/json"
+        produces:
+        - "application/json"
+        responses:
+        "200":
+        description: "200 response"
+        schema:
+        $ref: "#/definitions/Empty"
+        headers:
+        Access-Control-Allow-Origin:
+        type: "string"
+        Access-Control-Allow-Methods:
+        type: "string"
+        Access-Control-Allow-Headers:
+        type: "string"
+        x-amazon-apigateway-integration:
+        responses:
+        default:
+        statusCode: "200"
+        responseParameters:
+        method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+        method.response.header.Access-Control-Allow-Headers:
+        "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+        application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+        type: "mock"
+        securityDefinitions:
+        QuickSight:
+        type: "apiKey"
+        name: "Authorization"
+        in: "header"
+        x-amazon-apigateway-authtype: "cognito_user_pools"
+        x-amazon-apigateway-authorizer:
+        providerARNs:
+        - Fn::Sub: ${CognitoUserPool.Arn}
+        type: "cognito_user_pools"
+        definitions:
+        Empty:
+        type: "object"
+        title: "Empty Schema"
+        QuickSightFederationFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+        Handler: index.handler
+        Runtime: nodejs10.x
+        CodeUri: ./lambda.zip
+        Policies: AWSLambdaBasicExecutionRole
+        Events:
+        Post:
+        Type: Api
+        Properties:
+        Path: /
+        Method: POST
+        RestApiId:
+        Ref: QuickSightApi
+        AuthRole:
+        Type: "AWS::IAM::Role"
+        Properties:
+        AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+        Principal:
+        Federated:
+        - "cognito-identity.amazonaws.com"
+        Action:
+        - "sts:AssumeRoleWithWebIdentity"
+        Condition:
+        StringEquals:
+        cognito-identity.amazonaws.com:aud:
+        - !Ref CognitoIdPool
+        ForAnyValue:StringLike:
+        cognito-identity.amazonaws.com:amr:
+        - "authenticated"
+        Path: "/"
+        Policies:
+        - PolicyName: "QuickSightCreateUser"
+        PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+        Action: "quicksight:CreateUser"
+        Resource: "*"
+        AuthRoleAttach:
+        Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+        Properties:
+        IdentityPoolId: !Ref CognitoIdPool
+        Roles:
+        authenticated: !GetAtt AuthRole.Arn
+        S3WebSite:
+        Type: "AWS::S3::Bucket"
+        Properties:
+        AccessControl: PublicRead
+        WebsiteConfiguration:
+        IndexDocument: index.html
+        CloudFrontDistro:
+        Type: "AWS::CloudFront::Distribution"
+        Properties:
+        DistributionConfig:
+        Origins:
+        - DomainName:
+        !Join [
+        ".",
+        [
+        !Ref S3WebSite,
+        "s3-website",
+        !Ref "AWS::Region",
+        "amazonaws.com",
+        ],
+        ]
+        Id: S3WebSite
+        CustomOriginConfig:
+        HTTPPort: "80"
+        HTTPSPort: "443"
+        OriginProtocolPolicy: http-only
+        Enabled: "true"
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+        TargetOriginId: S3WebSite
+        ForwardedValues:
+        QueryString: "false"
+        Cookies:
+        Forward: none
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        ViewerProtocolPolicy: redirect-to-https
+        ViewerCertificate:
+        CloudFrontDefaultCertificate: "true"
+        Outputs:
+        ApiUrl:
+        Description: <API endpoint URL>
+            Value: !Join
+            - ""
+            - - https://
+            - !Ref QuickSightApi
+            - ".execute-api."
+            - !Ref "AWS::Region"
+            - ".amazonaws.com/prod"
+            RestApiId:
+            Description: <API Gateway API ID>
+                Value: !Ref QuickSightApi
+                LamdbaFunction:
+                Description: <Lambda Function>
+                    Value: !Ref QuickSightFederationFunction
+                    CognitoIdentityPool:
+                    Description: <Cognito Identity Pool>
+                        Value: !Ref CognitoIdPool
+                        CognitoUserPool:
+                        Description: <Cognito User Pool>
+                            Value: !Ref CognitoUserPool
+                            CognitoUserPoolClient:
+                            Description: <Cognito User Pool App>
+                                Value: !Ref CognitoUserPoolClient
+                                CognitoIdentityAuthRole:
+                                Description: <Cognito Identity IAM Auth Role>
+                                    Value: !Ref AuthRole
+                                    S3Website:
+                                    Description: <S3 WebSite URL>
+                                        Value: !GetAtt S3WebSite.WebsiteURL
+                                        CloudFrontDistro:
+                                        Description: <CloudFront Distribution URL>
+                                            Value: !GetAtt CloudFrontDistro.DomainName
+                                            body {
+                                            margin: 0;
+                                            padding: 0;
+                                            background-color: #fff;
+                                            font-family: "Lucida Grande", "Helvetica Neue", Roboto, "Droid Sans",
+                                            Prelude,
+                                            Helvetica, Arial, sans-serif;
+                                            font-size: 100%;
+                                            color: #334;
+                                            }
+
+                                            @media only screen and (max-width: 768px) {
+                                            body {
+                                            font-size: 87.5%;
+                                            }
+                                            }
+                                            section.homecontent {
+                                            display: block;
+                                            padding: 50px;
+                                            text-align: right;
+                                            position: absolute;
+                                            top: 0;
+                                            left: 0;
+                                            right: 50%;
+                                            bottom: 0;
+                                            border-right: 6px solid #ace;
+                                            background-color: #1876d4;
+                                            background-image: -webkit-gradient(
+                                            linear,
+                                            left top,
+                                            right top,
+                                            from(#1876d4),
+                                            to(#1876d4)
+                                            );
+                                            background-image: -webkit-linear-gradient(left, #9bd, #1876d4);
+                                            background-image: -moz-linear-gradient(left, #9bd, #1876d4);
+                                            background-image: -ms-linear-gradient(left, #9bd, #1876d4);
+                                            background-image: -o-linear-gradient(left, #9bd, #1876d4);
+                                            background-image: linear-gradient(left, #9bd, #1876d4);
+                                            filter: progid:DXImageTransform.Microsoft.gradient(startColorStr='#99bbdd',
+                                            EndColorStr='#7799bb');
+                                            }
+                                            section.homecontent h2 {
+                                            margin: 0 0 25px 0;
+                                            padding: 0;
+                                            color: #fff;
+                                            font-family: "Lobster Two", cursive;
+                                            font-size: 2.5em;
+                                            text-shadow: 3px 3px 0 #334;
+                                            -webkit-transition: all 0.3s linear;
+                                            -moz-transition: all 0.3s linear;
+                                            -o-transition: all 0.3s linear;
+                                            transition: all 0.3s linear;
+                                            }
+                                            section.homecontent p {
+                                            text-shadow: 1px 1px 0 #334;
+                                            font-size: 1.25em;
+                                            color: #fff;
+                                            line-height: 1.5em;
+                                            margin: 0 0 25px 0;
+                                            }
+                                            section.homecontent a,
+                                            section.homecontent a:link,
+                                            section.homecontent a:visited {
+                                            color: white;
+                                            text-decoration: none;
+                                            }
+                                            section.homecontent aside {
+                                            display: block;
+                                            color: white;
+                                            font-size: 0.875em;
+                                            font-style: italic;
+                                            }
+                                            section.functions {
+                                            display: block;
+                                            padding: 50px;
+                                            text-align: left;
+                                            background-color: #fff;
+                                            position: absolute;
+                                            top: 0;
+                                            left: 50%;
+                                            right: 0;
+                                            bottom: 0;
+                                            }
+                                            section.functions h2 {
+                                            margin: 0 0 25px 0;
+                                            padding: 0 0 0 30px;
+                                            color: #334;
+                                            font-family: "Lobster Two", cursive;
+                                            font-size: 1.875em;
+                                            padding-bottom: 3px;
+                                            border-bottom: 6px solid #1876d4;
+                                            /* background: url(/logo_aws_reduced.gif) left center no-repeat; */
+                                            }
+                                            section.functions ul {
+                                            padding: 0;
+                                            margin: 0 0 25px 0;
+                                            list-style-type: square;
+                                            list-style-position: inside;
+                                            }
+                                            section.functions ul li {
+                                            margin-left: 0;
+                                            padding-left: 0;
+                                            color: #1876d4;
+                                            font-size: 0.875em;
+                                            line-height: 1.5em;
+                                            }
+                                            section.functions a,
+                                            section.functions a:link {
+                                            color: white;
+                                            text-decoration: none;
+                                            }
+                                            section.functions a:visited {
+                                            color: white;
+                                            }
+                                            section.functions a:hover {
+                                            border: 1px solid #1876d4;
+                                            }
+
+                                            @media only screen and (max-width: 1024px) {
+                                            section.homecontent h1 {
+                                            font-size: 4em;
+                                            }
+                                            }
+                                            @media only screen and (max-width: 900px) {
+                                            section.homecontent h1 {
+                                            font-size: 3.5em;
+                                            }
+                                            }
+                                            @media only screen and (max-width: 768px) {
+                                            section.homecontent h1 {
+                                            font-size: 3em;
+                                            }
+                                            }
+
+                                            @media only screen and (max-width: 650px) {
+                                            html {
+                                            -webkit-text-size-adjust: none;
+                                            }
+                                            section.homecontent,
+                                            section.functions {
+                                            position: relative;
+                                            margin: 0;
+                                            border: 0;
+                                            padding: 10px;
+                                            width: 100%;
+                                            top: auto;
+                                            left: auto;
+                                            right: auto;
+                                            bottom: auto;
+                                            border-bottom: 6px solid #ace;
+                                            text-align: left;
+                                            }
+                                            }
+                                            .menu {
+                                            list-style: none !important;
+                                            text-align: right !important;
+                                            }
+                                            .menu li {
+                                            font-size: 24px !important;
+                                            }
+                                            .menu li a {
+                                            text-decoration: none !important;
+                                            }
+                                            .footer {
+                                            bottom: 0 !important;
+                                            position: absolute !important;
+                                            background-color: #1876d4;
+                                            color: white;
+                                            margin: 0 auto;
+                                            padding: 2px 5px;
+                                            width: 90%;
+                                            text-align: right;
+                                            }
+
+                                            <?
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $file = '/tmp/sample-app.log';
+    $message = file_get_contents('php://input');
+    file_put_contents($file, date('Y-m-d H:i:s') . " Received message: " . $message . "\n", FILE_APPEND);
+} else {
+?>
+                                            <!doctype html>
+                                            <html lang="en">
+
+                                            <head>
+                                                <title>Assignment 3</title>
+                                                <meta charset="utf-8">
+                                                <link rel="shortcut icon" type="image/png"
+                                                    href="https://a0.awsstatic.com/main/images/site/favicon.ico" />
+                                                <link rel="stylesheet" type="text/css"
+                                                    href="https://fonts.googleapis.com/icon?family=Material+Icons">
+                                                <link rel="stylesheet" type="text/css"
+                                                    href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css"
+                                                    media="screen,projection">
+                                                <link rel="stylesheet" type="text/css" href="styles.css">
+                                                <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+                                                <script
+                                                    src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/js/materialize.min.js"></script>
+
+                                                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                                            </head>
+
+                                            <body>
+                                                <section class="homecontent">
+                                                    <h2>Welcome to Energy Usage System,</h2>
+                                                    <p>Motivation behind this idea is the lack of existence of the
+                                                        system which can help visualize the appliance level electricity
+                                                        consumption data which can ultimately lead to</p>
+                                                    <p>It is a system which allows a user to register itself on the
+                                                        portal, login to see their electricity usage appliance wise data
+                                                        to monitor the energy consumption pattern to the end user as
+                                                        well the energy supplier.</p>
+                                                    <p>This system can be used as a novel stand-alone system as well as
+                                                        extension to the existing user/account management system offered
+                                                        by energy supply companies. This system has various potential
+                                                        such as implementation of anomaly detection for fault detecting
+                                                        in appliances as well as sensors.</p>
+                                                    <p>This fault detection can help reduce the risk of fire due to
+                                                        fault in appliance and can help for maintenance of sensors.
+                                                        Using high resolution data, companies can help manage peak hour
+                                                        usage using pattern of energy consumption.</p>
+                                                </section>
+
+                                                <section class="functions">
+
+                                                    <ul class="menu">
+                                                        <li><a class="waves-effect waves-light btn-large blue"
+                                                                href="https://d23o8qcv26cssk.cloudfront.net">Dashboard</a>
+                                                        </li>
+                                                    </ul>
+                                                    <div class="container">
+                                                        <div class="row">
+                                                            <div class="col s12 m12 ">
+                                                                <ul class=" collection with-header">
+                                                                    <li class="collection-header">
+                                                                        <h4>Functions</h4>
+                                                                    </li>
+                                                                    <li class="collection-item">Visualise energy usage
+                                                                    </li>
+                                                                    <li class="collection-item">Pattern Analysis</li>
+                                                                    <li class="collection-item">Export Data</li>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <footer class="footer">
+                                                        <p>Devansh Parmar(S3793557), Ravikumar Balar(S3798098)</p>
+                                                    </footer>
+                                                </section>
+                                            </body>
+
+                                            </html>
+                                            <?
+}
+?>
+
+                                            version: 1
+                                            cron:
+                                            - name: "task1"
+                                            url: "/scheduled.php"
+                                            schedule: "*/1 * * * *"
+
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <module type="WEB_MODULE" version="4">
+                                                <component name="CheckStyle-IDEA-Module">
+                                                    <option name="configuration">
+                                                        <map />
+                                                    </option>
+                                                </component>
+                                                <component name="NewModuleRootManager" inherit-compiler-output="true">
+                                                    <exclude-output />
+                                                    <content url="file://$MODULE_DIR$" />
+                                                    <orderEntry type="inheritedJdk" />
+                                                    <orderEntry type="sourceFolder" forTests="false" />
+                                                </component>
+                                            </module>
